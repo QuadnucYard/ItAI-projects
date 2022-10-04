@@ -212,7 +212,7 @@ struct puzzle_solver_heuristic : public puzzle_solver {
 				if (vis.contains(h)) continue;
 				open.push(nxt);
 				vis.insert(h);
-				if (h == htar) { found = true; break; }
+				if (h == htar) { close.push_back(nxt); found = true; break; }
 			}
 		}
 		// Now the last item is the final state.
