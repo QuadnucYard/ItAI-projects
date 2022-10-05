@@ -47,11 +47,63 @@ struct puzzle_solver {
 		}
 	}
 
-	struct solution_log {
-		int max_depth;
-		int nodes_generated;
-	} log;
+	class solution_log {
+		using time_point_t = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+	private:
+		time_point_t __start_tp;
+		time_point_t __stop_tp;
+		int __max_depth;
+		int __nodes_generated;
+		int __nodes_extended;
+		bool __solved;
+
+	public:
+		inline void restart() {
+			__max_depth = 0;
+			__nodes_generated = 0;
+			__nodes_extended = 0;
+			__solved = false;
+			__start_tp = std::chrono::high_resolution_clock::now();
+		}
+
+		inline void stop() {
+			__stop_tp = std::chrono::high_resolution_clock::now();
+		}
+
+		inline void inc_nodesgen() { __nodes_generated++; }
+
+		inline void inc_nodesext() { __nodes_extended++; }
+
+		inline void check_max_depth(int d) { __max_depth = std::max(d, __max_depth); }
+
+		inline void solved(bool value) { __solved = value; }
+		inline bool solved() const { return __solved; }
+
+		inline int nodes_generated() const { return __nodes_generated; }
+
+		inline int nodes_extended() const { return __nodes_extended; }
+
+		inline int max_depth() const { return __max_depth; }
+
+		inline int duration() const {
+			return std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(__stop_tp - __start_tp).count();
+		}
+	};
+	solution_log logger;
 };
+
+#define SOLVE_ENTER \
+	logger.restart(); \
+	if (ini == tar) { logger.stop(); logger.solved(true); return {};} \
+	size_t htar = tar.hash_code(); \
+	std::unordered_set<size_t> vis{ ini.hash_code() }; \
+	result_type res; \
+	bool found = false;
+#define SOLVE_EXIT \
+	logger.stop(); \
+	logger.solved(found); \
+	return res;
 
 /// @brief Puzzle solver using breath-first-search strategy.
 struct puzzle_solver_bfs : public puzzle_solver {
@@ -61,25 +113,25 @@ struct puzzle_solver_bfs : public puzzle_solver {
 	/// @param tar Target puzzle state.
 	/// @return Operation sequence.
 	template <puzzle_size_t row, puzzle_size_t col>
-	result_type operator()(const puzzle<row, col>& ini, const puzzle<row, col>& tar) const {
+	result_type operator()(const puzzle<row, col>& ini, const puzzle<row, col>& tar) {
 		struct puzzle_node {
 			puzzle<row, col> puz;
 			int action;
 			int prev;
+			int steps;
 		};
 
-		if (ini == tar) return {};
-
-		size_t htar = tar.hash_code();
-		std::vector<puzzle_node> q{ { ini, -1, -1 } };
-		std::unordered_set<size_t> vis{ ini.hash_code() };
-		bool found = false;
+		SOLVE_ENTER
+		std::vector<puzzle_node> q{ { ini, -1, -1, 0 } };
 
 		for (size_t i = 0; i < q.size() && !found; i++) {
+			logger.inc_nodesext();
 			auto cur = q[i];
 			for (int k = 0; k < 4; k++) {
 				if (!cur.puz.can_move(k)) continue;
-				puzzle_node nxt{ cur.puz, k, (int)i };
+				logger.inc_nodesgen();
+				logger.check_max_depth(cur.steps + 1);
+				puzzle_node nxt{ cur.puz, k, (int)i, cur.steps + 1 };
 				nxt.puz.move_blank(k);
 				size_t h = nxt.puz.hash_code();
 				if (vis.contains(h)) continue;
@@ -89,12 +141,11 @@ struct puzzle_solver_bfs : public puzzle_solver {
 			}
 		}
 		// Now the last item is the final state.
-		result_type res;
 		for (int i = q.size() - 1; i != 0; i = q[i].prev) {
 			res.push_back(q[i].action);
 		}
 		std::ranges::reverse(res);
-		return res;
+		SOLVE_EXIT
 	}
 };
 
@@ -108,18 +159,16 @@ struct puzzle_solver_dfs : public puzzle_solver {
 	/// @param limit Limit to depth.
 	/// @return Operation sequence.
 	template <puzzle_size_t row, puzzle_size_t col>
-	result_type operator()(const puzzle<row, col>& ini, const puzzle<row, col>& tar, int limit = 10) const {
-		if (ini == tar) return {};
-
-		size_t htar = tar.hash_code();
-		std::unordered_set<size_t> vis{ ini.hash_code() }; // Visited set
-		result_type res;
-		bool found = false;
+	result_type operator()(const puzzle<row, col>& ini, const puzzle<row, col>& tar, int limit) {
+		SOLVE_ENTER
 
 		const auto& dfs = [&](const puzzle<row, col>& cur) {
 			const auto& s = [&](auto&& self, const puzzle<row, col>& cur) -> void {
+				logger.inc_nodesext();
 				for (int k = 0; k < 4; k++) {
 					if (!cur.can_move(k)) continue;
+					logger.inc_nodesgen();
+					logger.check_max_depth(res.size() + 1);
 					puzzle nxt{ cur };
 					nxt.move_blank(k);
 					size_t h = nxt.hash_code();
@@ -136,7 +185,7 @@ struct puzzle_solver_dfs : public puzzle_solver {
 		};
 
 		dfs(ini);
-		return res;
+		SOLVE_EXIT
 	}
 
 };
@@ -179,7 +228,7 @@ struct puzzle_solver_heuristic : public puzzle_solver {
 	/// @param eval_func Evaluation function.
 	/// @return Operation sequence.
 	template <puzzle_size_t row, puzzle_size_t col, class Func>
-	result_type operator()(const puzzle<row, col>& ini, const puzzle<row, col>& tar, Func eval_func) const {
+	result_type operator()(const puzzle<row, col>& ini, const puzzle<row, col>& tar, Func eval_func) {
 		struct puzzle_node {
 			puzzle<row, col> puz;
 			int fcost;
@@ -191,21 +240,20 @@ struct puzzle_solver_heuristic : public puzzle_solver {
 			}
 		};
 
-		if (ini == tar) return {};
-
-		size_t htar = tar.hash_code();
+		SOLVE_ENTER
 		std::vector<puzzle_node> close;
 		std::priority_queue<puzzle_node> open;
-		std::unordered_set<size_t> vis{ ini.hash_code() };
 		open.push({ ini, 0, 0, -1, -1 });
-		bool found = false;
 
 		while (!open.empty() && !found) {
+			logger.inc_nodesext();
 			auto cur = open.top();
 			open.pop();
 			close.push_back(cur);
 			for (int k = 0; k < 4; k++) {
 				if (!cur.puz.can_move(k)) continue;
+				logger.inc_nodesgen();
+				logger.check_max_depth(cur.fcost + 1);
 				puzzle_node nxt{ cur.puz, cur.fcost + 1, eval_func(cur.puz, tar), k, (int)close.size() - 1 };
 				nxt.puz.move_blank(k);
 				size_t h = nxt.puz.hash_code();
@@ -216,11 +264,13 @@ struct puzzle_solver_heuristic : public puzzle_solver {
 			}
 		}
 		// Now the last item is the final state.
-		result_type res;
 		for (int i = close.size() - 1; i != 0; i = close[i].prev) {
 			res.push_back(close[i].action);
 		}
 		std::ranges::reverse(res);
-		return res;
+		SOLVE_EXIT
 	}
 };
+
+#undef SOLVE_ENTER
+#undef SOLVE_EXIT
