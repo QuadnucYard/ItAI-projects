@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <numeric>
 
+#define USE_CANTOR
+
 using puzzle_size_t = unsigned;
 
 /// @brief Base class of puzzle.
@@ -81,12 +83,18 @@ struct puzzle : puzzle_base {
 	size_t hash_code() const {
 		puzzle_size_t n = size;
 		size_t ans = 0, f = 1;
+#ifdef USE_CANTOR
 		for (int i = n - 1; i >= 0; f *= n - i, i--) {
 			int t = 0;
 			for (int j = i + 1; j < n; j++)
 				if (digits[j] < digits[i]) t++;
 			ans += t * f;
 		}
+#else
+		for (int i = 0; i < n; i++, f *= 10) {
+			ans += digits[i] * f;
+		}
+#endif
 		return ans;
 	}
 
