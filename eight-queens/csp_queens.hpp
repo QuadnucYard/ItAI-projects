@@ -2,7 +2,6 @@
 #include "csp.hpp"
 #include "min_conflict_search.hpp"
 #include <ranges>
-#include <algorithm>
 
 struct position {
 	int row;
@@ -28,25 +27,36 @@ struct Queen {
 
 struct QueensAssignment {
 	std::vector<Queen> vars;
-	std::vector<int> state0, state1, state2; // 列，主对角线，辅对角线
+	std::vector<int> state0, state1, state2; // Column, major diagonal, minor diagonal
+	int invalid_count;
 
 	QueensAssignment(const std::vector<Queen>& vars): vars(vars),
-		state0(vars.size()), state1(vars.size() * 2 - 1), state2(vars.size() * 2 - 1) {
+		state0(vars.size()), state1(vars.size() * 2 - 1), state2(vars.size() * 2 - 1),
+		invalid_count(0)
+	{
 		for (size_t i = 0; i < vars.size(); i++)
 			assign(this->vars[i], vars[i].value);
 	}
 
+	inline void inc(std::vector<int>& s, int i) {
+		if (++s[i] == 2) ++invalid_count;
+	}
+
+	inline void dec(std::vector<int>& s, int i) {
+		if (--s[i] == 1) --invalid_count;
+	}
+
 	void assign(Queen& old, const position& value) {
 		old.value = value;
-		++state0[value.col];
-		++state1[value.row + value.col];
-		++state2[value.row - value.col + vars.size() - 1];
+		inc(state0, value.col);
+		inc(state1, value.row + value.col);
+		inc(state2, value.row - value.col + vars.size() - 1);
 	}
 
 	void reassign(Queen& old, const position& value) {
-		--state0[old.value.col];
-		--state1[old.value.row + old.value.col];
-		--state2[old.value.row - old.value.col + vars.size() - 1];
+		dec(state0, old.value.col);
+		dec(state1, old.value.row + old.value.col);
+		dec(state2, old.value.row - old.value.col + vars.size() - 1);
 		assign(old, value);
 	}
 
@@ -76,6 +86,7 @@ struct CSPQueens: public CSP<Queen, QueensAssignment> {
 		return vars;
 	}
 
+	// Not used
 	bool constraint(const value_type& v1, const value_type& v2) const override {
 		return v1.col != v2.col && v1.row - v1.col != v2.row - v2.col && v1.row + v1.col != v2.row + v2.col;
 	}
@@ -86,11 +97,7 @@ struct CSPQueens: public CSP<Queen, QueensAssignment> {
 	}
 
 	bool is_solution(const assignment_type& assignment) const override {
-		constexpr static auto gt1 = [](int x) { return x > 1;};
-		if (std::ranges::any_of(assignment.state0, gt1)) return false;
-		if (std::ranges::any_of(assignment.state1, gt1)) return false;
-		if (std::ranges::any_of(assignment.state2, gt1)) return false;
-		return true;
+		return assignment.invalid_count == 0;
 	}
 };
 
