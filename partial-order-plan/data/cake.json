@@ -1,0 +1,16 @@
+{
+  "init": ["HaveCake"],
+  "goal": ["HaveCake", "EatenCake"],
+  "actions": [
+    {
+      "name": "EatCake",
+      "preconds": { "HaveCake": true },
+      "effects": { "HaveCake": false, "EatenCake": true }
+    },
+    {
+      "name": "BakeCake",
+      "preconds": { "HaveCake": false },
+      "effects": { "HaveCake": true }
+    }
+  ]
+}

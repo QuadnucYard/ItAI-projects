@@ -1,0 +1,32 @@
+{
+  "init": ["AFA", "AST"],
+  "goal": ["ASA"],
+  "actions": [
+    {
+      "name": "RST",
+      "preconds": { "AST": true },
+      "effects": { "AST": false, "ASG": true }
+    },
+    {
+      "name": "RFA",
+      "preconds": { "AFA": true },
+      "effects": { "AFA": false, "AFG": true }
+    },
+    {
+      "name": "PSA",
+      "preconds": { "ASG": true, "AFA": false },
+      "effects": { "ASG": false, "ASA": true }
+    },
+    {
+      "name": "LO",
+      "preconds": {},
+      "effects": {
+        "ASG": false,
+        "ASA": false,
+        "AST": false,
+        "AFG": false,
+        "AFA": false
+      }
+    }
+  ]
+}

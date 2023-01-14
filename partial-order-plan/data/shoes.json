@@ -1,0 +1,18 @@
+{
+  "init": [],
+  "goal": ["RightShoeOn", "LeftShoeOn"],
+  "actions": [
+    {
+      "name": "RightShoe",
+      "preconds": { "RightSockOn": true },
+      "effects": { "RightShoeOn": true }
+    },
+    { "name": "RightSock", "preconds": {}, "effects": { "RightSockOn": true } },
+    {
+      "name": "LeftShoe",
+      "preconds": { "LeftSockOn": true },
+      "effects": { "LeftShoeOn": true }
+    },
+    { "name": "LeftSock", "preconds": {}, "effects": { "LeftSockOn": true } }
+  ]
+}
