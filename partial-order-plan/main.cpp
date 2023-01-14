@@ -20,6 +20,7 @@ int main() {
 		fmt::print("{}\n", ans1);
 		auto ans2 = planning.backward_search();
 		fmt::print("{}\n", ans2);
+		planning.forward_search_g();
 	}
 	return 0;
 }

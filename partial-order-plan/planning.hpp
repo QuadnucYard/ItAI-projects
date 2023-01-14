@@ -24,9 +24,11 @@ public:
 
 	ResultType forward_search();
 	ResultType backward_search();
+	void forward_search_g();
 
 private:
 	void modify_state(State& state, const LiteralList& mods);
+	std::string state_to_string(const State& state);
 
 	State m_init_state;
 	State m_goal_state;

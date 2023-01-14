@@ -115,3 +115,58 @@ PartialOrderPlanning::ResultType PartialOrderPlanning::backward_search()
 	}
 	return {};
 }
+
+std::string PartialOrderPlanning::state_to_string(const State& state) {
+	std::string s;
+	for (auto&& [k, v] : state) {
+		if (v) s += '+';
+		else s += '-';
+		s += k;
+	}
+	return s;
+}
+
+#include <iostream>
+
+void PartialOrderPlanning::forward_search_g()
+{
+	std::vector<Node> nodes{ {m_init_state, -1, -1} }; // Store all generated nodes
+
+	std::queue<int> open{ {0} };
+	std::set<State> close{ nodes[0].state };
+
+	std::map<State, std::map<int, State>> graph;
+
+	while (!open.empty()) {
+		int cur_idx = open.front();
+		State cur_state = nodes[cur_idx].state;
+		open.pop();
+		// Extend
+		for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
+			// Check if all preconditions are satisfied
+			auto checker = [&cur_state](const Literal& t) {
+				auto it = cur_state.find(t.name);
+				return it != cur_state.end() && it->second == t.polarity;
+			};
+			if (!std::ranges::all_of(action.preconds, checker))
+				continue;
+			State next_state = cur_state;
+			// Apply effects
+			modify_state(next_state, action.effects);
+			// Enqueue
+			if (!close.contains(next_state)) {
+				open.push(nodes.size());
+				nodes.emplace_back(next_state, i, cur_idx);
+				close.insert(next_state);
+				graph[cur_state][i] = next_state;
+			}
+		}
+	}
+	// Print graph
+	for (auto&& [u, e] : graph) {
+		std::cout << "(" << state_to_string(u) << ") ->\n";
+		for (auto&& [a, v] : e)
+			std::cout << "  [" << m_actions[a].name << "] (" << state_to_string(v) << ")\n";
+	}
+	return;
+}
