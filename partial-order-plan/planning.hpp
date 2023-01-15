@@ -1,36 +1,61 @@
 #pragma once
-#include "basic-types.hpp"
+#include <string>
+#include <vector>
 #include <map>
 #include <set>
 #include <filesystem>
+#include "quatset.hpp"
 
 namespace fs = std::filesystem;
 
-class PartialOrderPlanning
+namespace qy::ai
 {
-	using State = std::map<std::string, bool>;
-	using ResultType = std::vector<std::string_view>;	// Type of search result
-
-	struct Node {
-		State state;
-		int act;	// Index of preformed action
-		int prev;	// Index of previous node
+	struct Literal {
+		int id;
+		bool polarity;
+		bool operator== (const Literal& o) const = default;
 	};
 
-public:
-	/// @brief Read planning task from JSON file.
-	/// @param file Path of the file.
-	void read_task(const fs::path& file);
+	using LiteralList = std::vector<Literal>;
 
-	ResultType forward_search();
-	ResultType backward_search();
-	void forward_search_g();
+	struct Action {
+		std::string name;
+		LiteralList preconds;
+		LiteralList effects;
+	};
 
-private:
-	void modify_state(State& state, const LiteralList& mods);
-	std::string state_to_string(const State& state);
+	class PartialOrderPlanning
+	{
+	public:
+		using State = quatset;
+		using ResultType = std::vector<std::string_view>;	// Type of search result
+		using GraphType = std::map<State, std::map<int, State>>;
 
-	State m_init_state;
-	State m_goal_state;
-	std::vector<Action> m_actions;
-};
+		struct Node {
+			State state;
+			int act;	// Index of preformed action
+			int prev;	// Index of previous node
+		};
+
+		int literal2id(const std::string& s);
+		void modify_state(State& state, const LiteralList& mods) const;
+		std::string state_to_string(const State& state) const;
+		const Action& get_action(int i) const;
+
+		/// @brief Read planning task from JSON file.
+		/// @param file Path of the file.
+		void read_task(const fs::path& file);
+
+		ResultType forward_search() const;
+		ResultType backward_search() const;
+		GraphType forward_search_g() const;
+
+	private:
+		State m_init_state;
+		State m_goal_state;
+		std::vector<Action> m_actions;
+
+		std::vector<std::string> m_literals;
+	};
+
+} // namespace qy::ai
