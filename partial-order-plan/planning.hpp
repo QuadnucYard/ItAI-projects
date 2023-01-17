@@ -1,27 +1,21 @@
 #pragma once
+#include "quatset.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <set>
 #include <filesystem>
-#include "quatset.hpp"
 
 namespace fs = std::filesystem;
 
 namespace qy::ai
 {
-	struct Literal {
-		int id;
-		bool polarity;
-		bool operator== (const Literal& o) const = default;
-	};
-
-	using LiteralList = std::vector<Literal>;
-
 	struct Action {
 		std::string name;
-		LiteralList preconds;
-		LiteralList effects;
+		quatset preconds;
+		quatset preconds_mask;
+		quatset effects;
+		quatset effects_mask;
 	};
 
 	class PartialOrderPlanning
@@ -38,7 +32,6 @@ namespace qy::ai
 		};
 
 		int literal2id(const std::string& s);
-		void modify_state(State& state, const LiteralList& mods) const;
 		std::string state_to_string(const State& state) const;
 		const Action& get_action(int i) const;
 

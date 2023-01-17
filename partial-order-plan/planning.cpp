@@ -15,17 +15,12 @@ namespace qy::ai
 		return m_literals.size() - 1;
 	}
 
-	void PartialOrderPlanning::modify_state(State& state, const LiteralList& mods) const
-	{
-		for (auto&& l : mods)
-			state.set(l.id, l.polarity + 1);
-	}
-
 	std::string PartialOrderPlanning::state_to_string(const State& state) const
 	{
 		std::string s;
 		for (size_t i = 0; i < m_literals.size(); i++) {
 			auto x = state.get(i);
+			if (x == quatset::UNKNOWN) continue;
 			if (x == quatset::TRUE) s += '+';
 			else if (x == quatset::FALSE)s += '-';
 			s += m_literals[i];
@@ -47,11 +42,17 @@ namespace qy::ai
 		for (auto&& v : root["goal"])
 			m_goal_state.set(literal2id(v.get<std::string>()));
 		for (auto&& v : root["actions"]) {
-			m_actions.emplace_back(v["name"].get<std::string>(), LiteralList{}, LiteralList{});
-			for (auto&& [k, v] : v["preconds"].items())
-				m_actions.back().preconds.emplace_back(literal2id(k), v.get<bool>());
-			for (auto&& [k, v] : v["effects"].items())
-				m_actions.back().effects.emplace_back(literal2id(k), v.get<bool>());
+			auto& a = m_actions.emplace_back(v["name"].get<std::string>(), 0, 0, 0, 0);
+			for (auto&& [k, v] : v["preconds"].items()) {
+				int i = literal2id(k);
+				a.preconds.setb(i, v.get<bool>());
+				a.preconds_mask.set(i, quatset::BOTH);
+			}
+			for (auto&& [k, v] : v["effects"].items()) {
+				int i = literal2id(k);
+				a.effects.setb(i, v.get<bool>());
+				a.effects_mask.set(i, quatset::BOTH);
+			}
 		}
 	}
 
@@ -77,14 +78,11 @@ namespace qy::ai
 			// Extend
 			for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
 				// Check if all preconditions are satisfied
-				auto checker = [&cur_state](const Literal& t) {
-					return cur_state.get(t.id) == t.polarity + 1;
-				};
-				if (!std::ranges::all_of(action.preconds, checker))
+				if (!cur_state.includes(action.preconds))
 					continue;
 				State next_state = cur_state;
 				// Apply effects
-				modify_state(next_state, action.effects);
+				next_state.modify(action.effects, action.effects_mask);
 				// Enqueue
 				if (!close.contains(next_state)) {
 					open.push(nodes.size());
@@ -116,21 +114,13 @@ namespace qy::ai
 			}
 			// Extend
 			for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
-				State prev_state = cur_state;
 				// Check if all effects are established
-				// Remove established literals from previous state
-				auto checker = [&](const Literal& e) {
-					if (auto x = prev_state.get(e.id); x != 0) {
-						if (x != e.polarity + 1)
-							return false;
-						prev_state.set(e.id, quatset::UNKNOWN);
-					}
-					return true;
-				};
-				if (!std::ranges::all_of(action.effects, checker))
+				if ((cur_state & action.effects_mask) & ~action.effects)
 					continue;
+				// Remove established literals from previous state
+				State prev_state = cur_state & ~action.effects_mask;
 				// Apply preconditions
-				modify_state(prev_state, action.preconds);
+				prev_state.modify(action.preconds, action.preconds_mask);
 				// Enqueue
 				if (!close.contains(prev_state)) {
 					open.push(nodes.size());
@@ -158,14 +148,11 @@ namespace qy::ai
 			// Extend
 			for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
 				// Check if all preconditions are satisfied
-				auto checker = [&cur_state](const Literal& t) {
-					return cur_state.get(t.id) == t.polarity + 1;
-				};
-				if (!std::ranges::all_of(action.preconds, checker))
+				if (!cur_state.includes(action.preconds))
 					continue;
 				State next_state = cur_state;
 				// Apply effects
-				modify_state(next_state, action.effects);
+				next_state.modify(action.effects, action.effects_mask);
 				// Enqueue
 				if (!close.contains(next_state)) {
 					open.push(nodes.size());
