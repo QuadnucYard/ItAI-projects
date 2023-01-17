@@ -56,6 +56,16 @@ namespace qy::ai
 		}
 	}
 
+	PartialOrderPlanning::ResultType PartialOrderPlanning::backtrack(const std::vector<Node>& nodes, int cur_idx, bool reversed) const
+	{
+		ResultType ans;
+		for (int i = cur_idx; i != 0; i = nodes[i].prev)
+			ans.emplace_back(m_actions[nodes[i].act].name);
+		if (reversed)
+			std::ranges::reverse(ans);
+		return ans;
+	}
+
 	PartialOrderPlanning::ResultType PartialOrderPlanning::forward_search() const
 	{
 		std::vector<Node> nodes{ {m_init_state, -1, -1} }; // Store all generated nodes
@@ -67,22 +77,15 @@ namespace qy::ai
 			int cur_idx = open.front();
 			State cur_state = nodes[cur_idx].state;
 			open.pop();
-			if (cur_state.includes(m_goal_state)) {
-				// Backtrack
-				ResultType ans;
-				for (int i = cur_idx; i != 0; i = nodes[i].prev)
-					ans.emplace_back(m_actions[nodes[i].act].name);
-				std::ranges::reverse(ans);
-				return ans;
-			}
+			if (cur_state.includes(m_goal_state))
+				return backtrack(nodes, cur_idx, true);
 			// Extend
 			for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
 				// Check if all preconditions are satisfied
 				if (!cur_state.includes(action.preconds))
 					continue;
-				State next_state = cur_state;
 				// Apply effects
-				next_state.modify(action.effects, action.effects_mask);
+				State next_state = cur_state.modified(action.effects, action.effects_mask);
 				// Enqueue
 				if (!close.contains(next_state)) {
 					open.push(nodes.size());
@@ -105,22 +108,16 @@ namespace qy::ai
 			int cur_idx = open.front();
 			State cur_state = nodes[cur_idx].state;
 			open.pop();
-			if (cur_state == m_init_state) {
-				// Backtrack
-				ResultType ans;
-				for (int i = cur_idx; i != 0; i = nodes[i].prev)
-					ans.emplace_back(m_actions[nodes[i].act].name);
-				return ans;
-			}
+			if (cur_state == m_init_state)
+				return backtrack(nodes, cur_idx, false);
 			// Extend
 			for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
 				// Check if all effects are established
 				if ((cur_state & action.effects_mask) & ~action.effects)
 					continue;
 				// Remove established literals from previous state
-				State prev_state = cur_state & ~action.effects_mask;
 				// Apply preconditions
-				prev_state.modify(action.preconds, action.preconds_mask);
+				State prev_state = (cur_state & ~action.effects_mask).modified(action.preconds, action.preconds_mask);
 				// Enqueue
 				if (!close.contains(prev_state)) {
 					open.push(nodes.size());
@@ -150,9 +147,8 @@ namespace qy::ai
 				// Check if all preconditions are satisfied
 				if (!cur_state.includes(action.preconds))
 					continue;
-				State next_state = cur_state;
 				// Apply effects
-				next_state.modify(action.effects, action.effects_mask);
+				State next_state = cur_state.modified(action.effects, action.effects_mask);
 				// Enqueue
 				if (!close.contains(next_state)) {
 					open.push(nodes.size());

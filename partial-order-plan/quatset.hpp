@@ -33,6 +33,10 @@ namespace qy
 			m_bitset = (m_bitset & ~mask.m_bitset) | value.m_bitset;
 		}
 
+		inline quatset modified(quatset value, quatset mask) const {
+			return { (m_bitset & ~mask.m_bitset) | value.m_bitset };
+		}
+
 		inline bool includes(quatset other) const {
 			return (m_bitset & other.m_bitset) == other.m_bitset;
 		}

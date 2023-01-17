@@ -44,6 +44,8 @@ namespace qy::ai
 		GraphType forward_search_g() const;
 
 	private:
+		ResultType backtrack(const std::vector<Node>& nodes, int cur_idx, bool reversed = false) const;
+
 		State m_init_state;
 		State m_goal_state;
 		std::vector<Action> m_actions;
