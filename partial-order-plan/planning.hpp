@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <filesystem>
+#include <optional>
 
 namespace fs = std::filesystem;
 
@@ -22,7 +23,7 @@ namespace qy::ai
 	{
 	public:
 		using State = quatset;
-		using ResultType = std::vector<std::string_view>;	// Type of search result
+		using ResultType = std::vector<int>;	// Type of search result
 		using GraphType = std::map<State, std::map<int, State>>;
 
 		struct Node {
@@ -33,14 +34,17 @@ namespace qy::ai
 
 		int literal2id(const std::string& s);
 		std::string state_to_string(const State& state) const;
-		const Action& get_action(int i) const;
+
+		inline const Action& get_action(int i) const { return m_actions[i]; }
+		inline State init_state() const { return m_init_state; }
+		inline State goal_state() const { return m_goal_state; }
 
 		/// @brief Read planning task from JSON file.
 		/// @param file Path of the file.
 		void read_task(const fs::path& file);
 
-		ResultType forward_search() const;
-		ResultType backward_search() const;
+		std::optional<ResultType> forward_search() const;
+		std::optional<ResultType> backward_search() const;
 		GraphType forward_search_g() const;
 
 	private:
@@ -49,6 +53,9 @@ namespace qy::ai
 		State m_init_state;
 		State m_goal_state;
 		std::vector<Action> m_actions;
+		bool m_init_omit;
+		bool m_goal_omit;
+		bool m_backward_strict;
 
 		std::vector<std::string> m_literals;
 	};

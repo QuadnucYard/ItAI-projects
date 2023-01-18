@@ -1,3 +1,8 @@
 shoes.json
 cake.json
 tire.json
+hanoi2.json
+hanoi3.json
+hanoi4.json
+hanoi5.json
+hanoi6.json

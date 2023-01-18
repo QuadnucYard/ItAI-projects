@@ -28,11 +28,6 @@ namespace qy::ai
 		return s;
 	}
 
-	const Action& PartialOrderPlanning::get_action(int i) const
-	{
-		return m_actions[i];
-	}
-
 	void PartialOrderPlanning::read_task(const fs::path& file)
 	{
 		using json = nlohmann::json;
@@ -54,21 +49,27 @@ namespace qy::ai
 				a.effects_mask.set(i, quatset::BOTH);
 			}
 		}
+		m_init_omit = !root.contains("initFlag") || root["initFlag"].get<bool>();
+		m_goal_omit = root.contains("goalFlag") && root["goalFlag"].get<bool>();
+		m_backward_strict = !root.contains("backwardStrictEqual") || root["backwardStrictEqual"].get<bool>();
 	}
 
 	PartialOrderPlanning::ResultType PartialOrderPlanning::backtrack(const std::vector<Node>& nodes, int cur_idx, bool reversed) const
 	{
 		ResultType ans;
 		for (int i = cur_idx; i != 0; i = nodes[i].prev)
-			ans.emplace_back(m_actions[nodes[i].act].name);
+			ans.emplace_back(nodes[i].act);
 		if (reversed)
 			std::ranges::reverse(ans);
 		return ans;
 	}
 
-	PartialOrderPlanning::ResultType PartialOrderPlanning::forward_search() const
+	std::optional<PartialOrderPlanning::ResultType> PartialOrderPlanning::forward_search() const
 	{
-		std::vector<Node> nodes{ {m_init_state, -1, -1} }; // Store all generated nodes
+		// Full initial state
+		State init_state = m_init_omit ? m_init_state.unk_as_false(m_literals.size()) : m_init_state;
+
+		std::vector<Node> nodes{ {init_state, -1, -1} }; // Store all generated nodes
 
 		std::queue<int> open{ {0} };
 		std::set<State> close{ nodes[0].state };
@@ -94,12 +95,15 @@ namespace qy::ai
 				}
 			}
 		}
-		return {};
+		return std::nullopt;
 	}
 
-	PartialOrderPlanning::ResultType PartialOrderPlanning::backward_search() const
+	std::optional<PartialOrderPlanning::ResultType> PartialOrderPlanning::backward_search() const
 	{
-		std::vector<Node> nodes{ {m_goal_state, -1, -1} }; // Store all generated nodes
+		// Full goal state
+		State goal_state = m_goal_omit ? m_goal_state.unk_as_false(m_literals.size()) : m_goal_state;
+
+		std::vector<Node> nodes{ {goal_state, -1, -1} }; // Store all generated nodes
 
 		std::queue<int> open{ {0} };
 		std::set<State> close{ nodes[0].state };
@@ -108,7 +112,7 @@ namespace qy::ai
 			int cur_idx = open.front();
 			State cur_state = nodes[cur_idx].state;
 			open.pop();
-			if (cur_state == m_init_state)
+			if ((m_backward_strict && cur_state == m_init_state) || (!m_backward_strict && cur_state.includes(m_init_state)))
 				return backtrack(nodes, cur_idx, false);
 			// Extend
 			for (auto&& [i, action] : tl::views::enumerate(m_actions)) {
@@ -126,12 +130,14 @@ namespace qy::ai
 				}
 			}
 		}
-		return {};
+		return std::nullopt;
 	}
 
 	PartialOrderPlanning::GraphType PartialOrderPlanning::forward_search_g() const
 	{
-		std::vector<Node> nodes{ {m_init_state, -1, -1} }; // Store all generated nodes
+		State init_state = m_init_omit ? m_init_state.unk_as_false(m_literals.size()) : m_init_state;
+
+		std::vector<Node> nodes{ {init_state, -1, -1} }; // Store all generated nodes
 
 		std::queue<int> open{ {0} };
 		std::set<State> close{ nodes[0].state };
