@@ -26,6 +26,16 @@ namespace qy::ai
 		using ResultType = std::vector<int>;	// Type of search result
 		using GraphType = std::map<State, std::map<int, State>>;
 
+		struct Log {
+			int states_generated;
+			int nodes_generated;
+
+			void clear() {
+				states_generated = nodes_generated = 0;
+			}
+		};
+		mutable Log log;
+
 		struct Node {
 			State state;
 			int act;	// Index of preformed action

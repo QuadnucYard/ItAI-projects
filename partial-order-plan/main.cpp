@@ -1,6 +1,7 @@
 #pragma GCC optimize(3)
 #include "planning.hpp"
 #include "planning-o.hpp"
+#include "../common/utils.hpp"
 #include <fmt/ranges.h>
 #include <fmt/color.h>
 #include <fstream>
@@ -47,20 +48,19 @@ int main() {
 	fmt::print("{}\n", ans0); */
 
 	std::ifstream ftasks("data/tasks.txt");
-	std::string task;
-	while (std::getline(ftasks, task)) {
+	for (std::string task; std::getline(ftasks, task); ) {
 		fmt::print(fmt::fg(fmt::color::orange), "Task: {}\n", task);
 		PartialOrderPlanning P;
 		P.read_task(fs::path("data") / task);
-		fmt::print("Perform forward...\n");
-		auto ans1 = P.forward_search();
-		fmt::print("Perform backward...\n");
-		auto ans2 = P.backward_search();
-		print_actions(P, ans1);
-		// print_chain(P, ans1);
-		print_actions(P, ans2);
-		// print_chain(P, ans2);
-		//print_graph(P, P.forward_search_g());
+		{
+			fmt::print("Perform forward...\n");
+			// auto ans1 = P.forward_search()
+			auto t = timeit([&]() { return P.forward_search(); }); // Replace with backward
+			fmt::print(fmt::fg(fmt::color::light_cyan), "[Result] ");
+			fmt::print(fmt::fg(fmt::color::yellow_green), "Duration: {:.3f}ms ", t.count() / 1e6f);
+			fmt::print(fmt::fg(fmt::color::slate_blue), "Nodes generated: {} ", P.log.nodes_generated);
+			fmt::print(fmt::fg(fmt::color::steel_blue), "States generated: {}\n", P.log.nodes_generated);
+		}
 	}
 	return 0;
 }

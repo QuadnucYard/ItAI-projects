@@ -6,3 +6,9 @@ hanoi3.json
 hanoi4.json
 hanoi5.json
 hanoi6.json
+hanoi7.json
+hanoi8.json
+hanoi9.json
+hanoi10.json
+hanoi11.json
+hanoi12.json

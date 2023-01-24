@@ -66,6 +66,7 @@ namespace qy::ai
 
 	std::optional<PartialOrderPlanning::ResultType> PartialOrderPlanning::forward_search() const
 	{
+		log.clear();
 		// Full initial state
 		State init_state = m_init_omit ? m_init_state.unk_as_false(m_literals.size()) : m_init_state;
 
@@ -73,6 +74,8 @@ namespace qy::ai
 
 		std::queue<int> open{ {0} };
 		std::set<State> close{ nodes[0].state };
+
+		log.nodes_generated = log.states_generated = 1;
 
 		while (!open.empty()) {
 			int cur_idx = open.front();
@@ -87,11 +90,13 @@ namespace qy::ai
 					continue;
 				// Apply effects
 				State next_state = cur_state.modified(action.effects, action.effects_mask);
+				++log.states_generated;
 				// Enqueue
 				if (!close.contains(next_state)) {
 					open.push(nodes.size());
 					nodes.emplace_back(next_state, i, cur_idx);
 					close.insert(next_state);
+					++log.nodes_generated;
 				}
 			}
 		}
@@ -100,6 +105,7 @@ namespace qy::ai
 
 	std::optional<PartialOrderPlanning::ResultType> PartialOrderPlanning::backward_search() const
 	{
+		log.clear();
 		// Full goal state
 		State goal_state = m_goal_omit ? m_goal_state.unk_as_false(m_literals.size()) : m_goal_state;
 
@@ -107,6 +113,8 @@ namespace qy::ai
 
 		std::queue<int> open{ {0} };
 		std::set<State> close{ nodes[0].state };
+
+		log.nodes_generated = log.states_generated = 1;
 
 		while (!open.empty()) {
 			int cur_idx = open.front();
@@ -122,11 +130,13 @@ namespace qy::ai
 				// Remove established literals from previous state
 				// Apply preconditions
 				State prev_state = (cur_state & ~action.effects_mask).modified(action.preconds, action.preconds_mask);
+				++log.states_generated;
 				// Enqueue
 				if (!close.contains(prev_state)) {
 					open.push(nodes.size());
 					nodes.emplace_back(prev_state, i, cur_idx);
 					close.insert(prev_state);
+					++log.nodes_generated;
 				}
 			}
 		}

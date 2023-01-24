@@ -35,5 +35,5 @@ def gen_hanoi(n: int):
     (Path(__file__).absolute().parent / f"hanoi{n}.json").write_text(json.dumps(data))
 
 
-for i in range(1, 11):
+for i in range(1, 13):
     gen_hanoi(i)
